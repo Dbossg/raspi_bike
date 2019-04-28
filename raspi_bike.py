@@ -1,6 +1,8 @@
-import pygame
+import pygame, os
 import sqlite3
 from pygame.locals import *
+
+os.environ["SDL_FBDEV"] = "/dev/fb1"
 
 WHITE = 255,255,255
 GREEN = 0,255,0
