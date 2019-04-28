@@ -2,7 +2,8 @@ import pygame, os
 import sqlite3
 from pygame.locals import *
 
-os.environ["SDL_FBDEV"] = "/dev/fb1"
+os.putenv('SDL_FBDEV', '/dev/fb0')
+os.environ["SDL_FBDEV"] = "/dev/fb0"
 
 WHITE = 255,255,255
 GREEN = 0,255,0
@@ -47,7 +48,18 @@ class App:
         self._display_surf = None
         self.time = 0
         self.size = self.weight, self.height = 480, 320
-        
+
+        self.calib_x_gain = -0.132
+        self.calib_x_offset = 520
+        self.calib_y_gain = 0.2075
+        self.calib_y_offset = -20
+
+        # test zero calibration
+        #self.calib_x_gain = 1
+        #self.calib_x_offset = 0
+        #self.calib_y_gain = 1
+        #self.calib_y_offset = 0
+    	
     def test(self):
         print("TEST")
 
@@ -69,10 +81,13 @@ class App:
 
     def button(self,msg,sz,ic,ac,action=None):
         x,y,w,h = sz
-        
+
         mouse = pygame.mouse.get_pos()
+        my = mouse[1] * self.calib_y_gain + self.calib_y_offset
+        mx = mouse[0] * self.calib_x_gain + self.calib_x_offset
+
         click = pygame.mouse.get_pressed()
-        if x+w > mouse[0] > x and y+h > mouse[1] > y:
+        if x+w > mx > x and y+h > my > y:
             pygame.draw.rect(self._display_surf, ac,(x,y,w,h))
             if click[0] == 1 and action != None:
                 action()         
@@ -201,7 +216,7 @@ class App:
     def on_execute(self):
         if self.on_init() == False:
             self._running = False
-
+        
         pygame.time.set_timer(USEREVENT, 0)
 
         font = pygame.font.Font(None, 35)
@@ -215,6 +230,7 @@ class App:
         #self._display_surf.blit(buttonMenu, (550,370))
 
         while( self._running ):
+
             for event in pygame.event.get():
                 self.on_event(event)
             self.on_loop()
