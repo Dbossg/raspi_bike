@@ -12,7 +12,7 @@ RED   = 255,0,0
 class App:
     def __init__(self):
 
-        self.conn = sqlite3.connect("bike.db") # или :memory: чтобы сохранить в RAM
+        self.conn = sqlite3.connect("bike.db")
         self.cursor = self.conn.cursor()
 
         # SQL Fisrt run
