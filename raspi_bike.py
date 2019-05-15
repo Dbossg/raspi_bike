@@ -5,7 +5,7 @@ import traceback
 from pygame.locals import *
 from datetime import datetime
 
-os.environ["SDL_FBDEV"] = "/dev/fb0"
+os.environ["SDL_FBDEV"] = "/dev/fb1"
 
 WHITE = 255,255,255
 GREEN = 0,255,0
