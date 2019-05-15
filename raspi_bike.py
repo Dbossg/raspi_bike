@@ -1,8 +1,11 @@
 import pygame, os
 import sqlite3
+import traceback
+#import RPi.GPIO as GPIO
 from pygame.locals import *
+from datetime import datetime
 
-os.environ["SDL_FBDEV"] = "/dev/fb1"
+os.environ["SDL_FBDEV"] = "/dev/fb0"
 
 WHITE = 255,255,255
 GREEN = 0,255,0
@@ -10,6 +13,8 @@ BGREEN= 0,128,0
 BLACK = 0,0,0
 BLUE  = 0,0,255
 RED   = 255,0,0
+
+GPIO1 = 28
 
 class App:
     def __init__(self):
@@ -47,6 +52,35 @@ class App:
         self._display_surf = None
         self.time = 0
         self.size = self.weight, self.height = 480, 320
+
+        self.calib_x_gain = -0.132
+        self.calib_x_offset = 520
+        self.calib_y_gain = 0.2075
+        self.calib_y_offset = -20
+
+        # test zero calibration
+        #self.calib_x_gain = 1
+        #self.calib_x_offset = 0
+        #self.calib_y_gain = 1
+        #self.calib_y_offset = 0
+
+        # GPIO for hall sensors
+        self.GPIO1_state = 0
+        #GPIO.setmode(GPIO.BCM)
+
+        # Set Switch GPIO as input
+        # Pull high by default
+        #GPIO.setup(GPIO1 , GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        #GPIO.add_event_detect(GPIO1, GPIO.BOTH, callback=self.sensorCallback, bouncetime=200)
+        #sensorCallback(GPIO1)
+
+    def sensorCallback(self, channel):
+      # Called if sensor output changes
+      if GPIO.input(channel):
+        self.GPIO1_state = 1
+      else:
+        # Magnet
+        self.GPIO1_state = 0
         
     def test(self):
         print("TEST")
@@ -69,10 +103,15 @@ class App:
 
     def button(self,msg,sz,ic,ac,action=None):
         x,y,w,h = sz
-        
+
         mouse = pygame.mouse.get_pos()
+        mx = round(mouse[0] * self.calib_x_gain + self.calib_x_offset)
+        my = round(mouse[1] * self.calib_y_gain + self.calib_y_offset)
+
+        #print(str(mx)+":"+str(mouse[0]))
+
         click = pygame.mouse.get_pressed()
-        if x+w > mouse[0] > x and y+h > mouse[1] > y:
+        if x+w > mx > x and y+h > my > y:
             pygame.draw.rect(self._display_surf, ac,(x,y,w,h))
             if click[0] == 1 and action != None:
                 action()         
@@ -138,13 +177,14 @@ class App:
             buttonStart = self.button("TRIP",(0,0,80,40),BLACK,BLACK)
         
             labelTime = self.button("Time:",(103,10,78,40),BLACK,BLACK)
-            valueTime = self.button(str(self.time),(181,10,132,40),BLACK,BLACK)
+            valueTime = self.button(datetime.utcfromtimestamp(self.time).strftime("%H:%M:%S"),(181,10,132,40),BLACK,BLACK)
 
             labelDist = self.button("Dist:",(117,54,65,40),BLACK,BLACK)
             valueDist = self.button("000.00 km",(184,54,157,40),BLACK,BLACK)
 
             labelSpeed = self.button("Speed:",(81,105,101,40),BLACK,BLACK)
-            valueSpeed = self.button("000.00 km/h",(204,105,167,40),BLACK,BLACK)
+            valueSpeed = self.button(str(self.GPIO1_state),(204,105,167,40),BLACK,BLACK)
+            #valueSpeed = self.button("000.00 km/h",(204,105,167,40),BLACK,BLACK)
 
             labelAvgSpeed = self.button("Avg. Speed:",(11,145,171,40),BLACK,BLACK)
             valueAvgSpeed = self.button("000.00 km/h",(204,146,167,40),BLACK,BLACK)
@@ -178,7 +218,7 @@ class App:
             for row in all_rows:
 
                 labelTime = self.button("Time:",(221,49,78,40),BLACK,BLACK)
-                valueTime = self.button(str(row[0]),(309,49,132,40),BLACK,BLACK)
+                valueTime = self.button(datetime.utcfromtimestamp(row[0]).strftime("%H:%M:%S"),(309,49,132,40),BLACK,BLACK)
             
                 labelTime = self.button("Dist:",(213,99,65,40),BLACK,BLACK)
                 valueTime = self.button(str(row[1]),(288,99,157,40),BLACK,BLACK)
@@ -201,7 +241,7 @@ class App:
     def on_execute(self):
         if self.on_init() == False:
             self._running = False
-
+        
         pygame.time.set_timer(USEREVENT, 0)
 
         font = pygame.font.Font(None, 35)
@@ -215,13 +255,17 @@ class App:
         #self._display_surf.blit(buttonMenu, (550,370))
 
         while( self._running ):
+
             for event in pygame.event.get():
                 self.on_event(event)
             self.on_loop()
             self.on_render()
         self.on_cleanup()
+try:
+    if __name__ == "__main__" :
+        theApp = App()
+        theApp.on_execute()
+except Exception as ex:
+    tb_lines = traceback.format_exception(ex.__class__, ex, ex.__traceback__)
 
-if __name__ == "__main__" :
-    theApp = App()
-    theApp.on_execute()
-    
+    print(tb_lines)
