@@ -1,7 +1,7 @@
 import pygame, os
 import sqlite3
 import traceback
-#import RPi.GPIO as GPIO
+import platform
 from pygame.locals import *
 from datetime import datetime
 
@@ -14,6 +14,7 @@ BLACK = 0,0,0
 BLUE  = 0,0,255
 RED   = 255,0,0
 
+#D0 for Hall sensor
 GPIO1 = 28
 
 class App:
@@ -59,20 +60,20 @@ class App:
         self.calib_y_offset = -20
 
         # test zero calibration
-        #self.calib_x_gain = 1
-        #self.calib_x_offset = 0
-        #self.calib_y_gain = 1
-        #self.calib_y_offset = 0
+        self.calib_x_gain = 1
+        self.calib_x_offset = 0
+        self.calib_y_gain = 1
+        self.calib_y_offset = 0
 
         # GPIO for hall sensors
-        self.GPIO1_state = 0
-        #GPIO.setmode(GPIO.BCM)
+        if platform.system()=='Linux':
+            GPIO.setmode(GPIO.BCM)
 
         # Set Switch GPIO as input
         # Pull high by default
-        #GPIO.setup(GPIO1 , GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        #GPIO.add_event_detect(GPIO1, GPIO.BOTH, callback=self.sensorCallback, bouncetime=200)
-        #sensorCallback(GPIO1)
+            GPIO.setup(GPIO1 , GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.add_event_detect(GPIO1, GPIO.BOTH, callback=self.sensorCallback, bouncetime=200)
+            sensorCallback(GPIO1)
 
     def sensorCallback(self, channel):
       # Called if sensor output changes
@@ -95,6 +96,7 @@ class App:
         self.tripId = 1
         self.isStart = 0
         self.labelStartStop = "START"
+        self.GPIO1_state = 0
 
         #fetch cadence settings
         sql = "SELECT useCadence FROM Settings where id = 1"
@@ -262,6 +264,9 @@ class App:
             self.on_render()
         self.on_cleanup()
 try:
+    if platform.system()=='Linux':
+        import RPi.GPIO as GPIO
+        
     if __name__ == "__main__" :
         theApp = App()
         theApp.on_execute()
