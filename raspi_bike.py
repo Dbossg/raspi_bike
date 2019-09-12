@@ -4,6 +4,7 @@ import traceback
 import platform
 from pygame.locals import *
 from datetime import datetime
+import time
 
 os.environ["SDL_FBDEV"] = "/dev/fb1"
 
@@ -19,6 +20,9 @@ GPIO1 = 28
 
 class App:
     def __init__(self):
+
+        self.start = 0
+        self.speed = 0
 
         self.conn = sqlite3.connect("bike.db")
         self.cursor = self.conn.cursor()
@@ -41,7 +45,7 @@ class App:
             lastDate INTEGER)""")
 
         self.cursor.execute("""INSERT OR IGNORE INTO Settings VALUES(1, 2120, 0, julianday('2019-04-19'))""")
-
+        self.conn.commit()
         #self.cursor.execute("""INSERT OR IGNORE INTO trips VALUES(1, 1234, 4567, 12.34, 0, 0, 0, 0)""")
         #self.cursor.execute("""INSERT OR IGNORE INTO trips VALUES(2, 7897, 4557, 22.34, 0, 0, 0, 0)""")
         #self.cursor.execute("""INSERT OR IGNORE INTO trips VALUES(3, 1448, 7887, 33.34, 0, 0, 0, 0)""")
@@ -82,6 +86,7 @@ class App:
       else:
         # Magnet
         self.GPIO1_state = 0
+        self.getSpeed()
         
     def test(self):
         print("TEST")
@@ -131,7 +136,23 @@ class App:
 
         if event.type == pygame.USEREVENT:
             self.time = self.time + 1;
-                
+
+        if event.type == pygame.KEYDOWN:
+            pressed = pygame.key.get_pressed()
+
+            if pressed[pygame.K_LCTRL]:
+                self.getSpeed()
+            
+            if pressed[pygame.K_SPACE]:
+               self.changeMenu()
+
+            if pressed[pygame.K_RCTRL]:
+                if self._mode == "MAIN":
+                    self.startStop()
+                else:  
+                    if self._mode == "LIST":
+                        self.nextTrip()
+                    
     def on_loop(self):
         pygame.time.delay(100)
         
@@ -152,7 +173,18 @@ class App:
             self.tripId = self.tripId-1
 
     def nextTrip(self):
+        count=0
+        
+        sql = "SELECT count(*) FROM trips"
+        self.cursor.execute(sql)
+        all_rows = self.cursor.fetchall()
+        for row in all_rows:
+            count=row[0]
+
         self.tripId = self.tripId+1
+
+        if self.tripId > count:
+            self.tripId = 1
 
     def startStop(self):
         if self.isStart == 1:
@@ -160,6 +192,7 @@ class App:
             self.isStart = 0
 
             self.cursor.execute("""INSERT INTO trips (time) VALUES(:time)""", {'time':self.time})
+            self.conn.commit()
 
             self.time = 0
             self.labelStartStop = "START"
@@ -168,6 +201,17 @@ class App:
             pygame.time.set_timer(USEREVENT, 1000)
             self.isStart = 1
             self.labelStartStop = "STOP"
+
+    def getSpeed(self):
+        done = time.time()
+        elapsed = (done - self.start)    #sec
+        rpm = 1/(elapsed/60)          #rpm
+
+        dist = rpm * 2070           #mm
+        self.speed = dist / elapsed      #mm per min
+        self.speed = round(self.speed / 1000 / 1000 * 60, 2)
+
+        self.start = done
 
     def on_render(self):
         #Constant elements
@@ -185,7 +229,7 @@ class App:
             valueDist = self.button("000.00 km",(184,54,157,40),BLACK,BLACK)
 
             labelSpeed = self.button("Speed:",(81,105,101,40),BLACK,BLACK)
-            valueSpeed = self.button(str(self.GPIO1_state),(204,105,167,40),BLACK,BLACK)
+            valueSpeed = self.button(str(self.speed),(204,105,167,40),BLACK,BLACK)
             #valueSpeed = self.button("000.00 km/h",(204,105,167,40),BLACK,BLACK)
 
             labelAvgSpeed = self.button("Avg. Speed:",(11,145,171,40),BLACK,BLACK)
